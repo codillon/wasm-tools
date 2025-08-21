@@ -65,6 +65,7 @@ pub struct Config {
     fold_instructions: bool,
     indent_text: String,
     print_operand_stack: bool,
+    skip_resolution: bool,
 }
 
 impl Default for Config {
@@ -76,6 +77,7 @@ impl Default for Config {
             fold_instructions: false,
             indent_text: "  ".to_string(),
             print_operand_stack: false,
+            skip_resolution: false,
         }
     }
 }
@@ -252,6 +254,26 @@ impl Config {
     /// ```
     pub fn fold_instructions(&mut self, enable: bool) -> &mut Self {
         self.fold_instructions = enable;
+        self
+    }
+
+    /// Skip the resolution of symbolic identifiers to numerical indices.
+    ///
+    /// This will prevent printing from displaying identifiers in their
+    /// symbolic forms.
+    ///
+    /// ```wasm
+    /// (module
+    ///   (global (mut i32) (i32.const 0))
+    ///   (func
+    ///     global.get 0
+    ///     i32.const 1
+    ///     i32.add
+    ///     global.set 0)
+    /// )
+    /// ```
+    pub fn skip_resolution(&mut self, enable: bool) -> &mut Self {
+        self.skip_resolution = enable;
         self
     }
 
@@ -530,7 +552,9 @@ impl Printer<'_, '_> {
 
                     // First up try to find the `name` subsection which we'll use to print
                     // pretty names everywhere.
-                    self.read_names(bytes, parser.clone(), state)?;
+                    if !self.config.skip_resolution {
+                        self.read_names(bytes, parser.clone(), state)?;
+                    }
 
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
